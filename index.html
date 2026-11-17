@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f2">
+  <title>Lecturas en voz alta</title>
+  <style>
+    :root { color-scheme: light; --ink:#20231f; --muted:#626a62; --line:#d9ddd6; --paper:#fff; --bg:#f5f5f2; --accent:#285943; --danger:#a62f2f; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:22px 14px 40px; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { max-width:520px; margin:0 auto; }
+    header { margin:8px 0 22px; }
+    h1 { margin:0 0 5px; font-size:1.65rem; line-height:1.15; letter-spacing:-.03em; }
+    .subtitle { margin:0; color:var(--muted); }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:18px; padding:18px; margin:14px 0; box-shadow:0 2px 8px #17251a08; }
+    h2 { margin:0 0 10px; font-size:1.02rem; }
+    p { margin:8px 0; }
+    label { display:block; font-weight:650; margin:0 0 7px; }
+    input { width:100%; border:1px solid #aeb7ad; border-radius:11px; padding:14px 13px; font:inherit; font-size:1.1rem; letter-spacing:.08em; }
+    button { width:100%; min-height:50px; border:0; border-radius:12px; padding:12px 16px; font:inherit; font-weight:700; cursor:pointer; background:var(--accent); color:white; }
+    button:disabled { opacity:.42; cursor:not-allowed; }
+    button.secondary { color:var(--ink); background:#e9ede7; border:1px solid var(--line); }
+    button.danger { background:var(--danger); }
+    .stack { display:grid; gap:10px; }
+    .muted { color:var(--muted); font-size:.91rem; }
+    .hidden { display:none !important; }
+    .status { border-radius:11px; padding:11px 12px; background:#eef1ec; color:#3f4a40; font-size:.93rem; }
+    .status.error { background:#f9e9e7; color:#842b25; }
+    .status.good { background:#e7f2e9; color:#245c35; }
+    .timer { text-align:center; font-variant-numeric:tabular-nums; font-size:2.6rem; font-weight:650; letter-spacing:-.04em; margin:7px 0; }
+    .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#aeb7ad; margin-right:7px; }
+    .dot.live { background:#c73535; box-shadow:0 0 0 4px #c7353520; }
+    audio { width:100%; margin:10px 0; }
+    .notice { font-size:.86rem; color:var(--muted); }
+    footer { text-align:center; color:var(--muted); font-size:.8rem; margin-top:22px; }
+    .consent { display:flex; align-items:flex-start; gap:9px; font-size:.9rem; color:var(--muted); }
+    .consent input { width:19px; height:19px; margin-top:2px; flex:0 0 auto; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Lecturas en voz alta</h1>
+    <p class="subtitle">Registro de lectura oral</p>
+  </header>
+
+  <section class="card" id="identityCard">
+    <h2>1. Identificación</h2>
+    <p class="muted">Ingresá el código que te proporcionó el docente.</p>
+    <label for="studentCode">Código de estudiante</label>
+    <input id="studentCode" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="Ingresá tu código">
+    <div style="height:12px"></div>
+    <label class="consent"><input type="checkbox" id="confirmText">
+      <span>Tengo el texto impreso y estoy listo/a para realizar una única lectura grabada.</span>
+    </label>
+    <div style="height:14px"></div>
+    <button id="continueBtn">Continuar</button>
+  </section>
+
+  <section class="card hidden" id="recordCard">
+    <h2>2. Grabación</h2>
+    <p>Ubicá el texto impreso frente a vos. Buscá un lugar tranquilo. Cuando estés listo/a, comenzá a leer en voz alta.</p>
+    <p class="notice">La grabación se realiza una sola vez. No cierres esta página mientras grabás.</p>
+    <div class="status" id="recordStatus"><span class="dot"></span>Listo para grabar</div>
+    <div class="timer" id="timer">00:00</div>
+    <div class="stack">
+      <button id="startBtn">Comenzar lectura</button>
+      <button id="stopBtn" class="danger hidden">Finalizar grabación</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="reviewCard">
+    <h2>3. Revisar y enviar</h2>
+    <p>La grabación ya terminó. Podés escucharla para comprobar que se registró correctamente. No es posible volver a grabar.</p>
+    <audio id="playback" controls playsinline></audio>
+    <div class="status" id="uploadStatus">Cuando estés listo/a, enviá la grabación.</div>
+    <div style="height:12px"></div>
+    <button id="sendBtn">Enviar grabación</button>
+    <p class="notice">No cierres la página hasta recibir la confirmación de envío.</p>
+  </section>
+
+  <section class="card hidden" id="doneCard">
+    <h2>Registro recibido</h2>
+    <div class="status good" id="doneMessage">La grabación se envió correctamente.</div>
+    <p class="muted">Ya podés cerrar esta página.</p>
+  </section>
+
+  <section class="card hidden" id="problemCard">
+    <h2>No se pudo completar el envío</h2>
+    <p id="problemText">Si tuviste un problema técnico, avisale al docente e indicá tu código.</p>
+    <p class="notice">No vuelvas a grabar ni intentes enviar repetidamente. El docente revisará el caso.</p>
+  </section>
+
+  <footer>Actividad de lectura oral · Si tenés un inconveniente técnico, comunicate con tu docente.</footer>
+</main>
+
+<script>
+(() => {
+  // El docente completará esta dirección después de publicar el proyecto de Apps Script.
+  const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyjUaeRT9QbjzccS5Ky9K5ECEUzHhAUGwIk6X2xvciUBrss-n51porgw3qQ1lkAaTkD/exec";
+
+  const $ = (id) => document.getElementById(id);
+  const sections = ["identityCard","recordCard","reviewCard","doneCard","problemCard"];
+  const show = (id) => sections.forEach(s => $(s).classList.toggle("hidden", s !== id));
+  let recorder = null, chunks = [], audioBlob = null, stream = null;
+  let startedAt = 0, timerHandle = null, studentCode = "";
+  let requestId = "";
+
+  function status(el, message, kind="") {
+    el.textContent = message;
+    el.className = "status" + (kind ? " " + kind : "");
+  }
+  function fmtTime(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2,"0");
+    const s = Math.floor(seconds % 60).toString().padStart(2,"0");
+    return `${m}:${s}`;
+  }
+  function stopTracks() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  function makeRequestId() {
+    return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2,9);
+  }
+
+  $("continueBtn").addEventListener("click", () => {
+    studentCode = $("studentCode").value.trim();
+    if (!studentCode) return alert("Ingresá tu código.");
+    if (!$("confirmText").checked) return alert("Confirmá que tenés el texto impreso y estás listo/a.");
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(UPLOAD_URL)) {
+      return alert("La página todavía no está conectada. Avisale al docente.");
+    }
+    show("recordCard");
+  });
+
+  $("startBtn").addEventListener("click", async () => {
+    $("startBtn").disabled = true;
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        throw new Error("Este navegador no permite grabar audio. Probá con una versión actualizada de Chrome o Safari.");
+      }
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+      const candidates = ["audio/webm;codecs=opus","audio/mp4","audio/webm","audio/ogg;codecs=opus"];
+      const mimeType = candidates.find(t => MediaRecorder.isTypeSupported(t));
+      recorder = mimeType ? new MediaRecorder(stream, {mimeType}) : new MediaRecorder(stream);
+      chunks = [];
+      recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      recorder.onerror = () => {
+        stopTracks();
+        status($("recordStatus"), "Hubo un problema durante la grabación. Avisale al docente.", "error");
+        $("problemText").textContent = "La grabación se interrumpió por un problema técnico. Avisale al docente e indicá tu código.";
+        show("problemCard");
+      };
+      recorder.onstop = () => {
+        clearInterval(timerHandle);
+        stopTracks();
+        audioBlob = new Blob(chunks, {type: recorder.mimeType || "audio/webm"});
+        if (!audioBlob.size) {
+          $("problemText").textContent = "No se pudo generar un archivo de audio. Avisale al docente e indicá tu código.";
+          show("problemCard");
+          return;
+        }
+        $("playback").src = URL.createObjectURL(audioBlob);
+        show("reviewCard");
+      };
+      recorder.start(1000);
+      startedAt = Date.now();
+      $("timer").textContent = "00:00";
+      $("startBtn").classList.add("hidden");
+      $("stopBtn").classList.remove("hidden");
+      status($("recordStatus"), "Grabando…", "");
+      $("recordStatus").innerHTML = '<span class="dot live"></span>Grabando…';
+      timerHandle = setInterval(() => $("timer").textContent = fmtTime((Date.now()-startedAt)/1000), 500);
+    } catch (err) {
+      $("startBtn").disabled = false;
+      alert(err.message || "No se pudo acceder al micrófono.");
+    }
+  });
+
+  $("stopBtn").addEventListener("click", () => {
+    if (recorder && recorder.state !== "inactive") {
+      $("stopBtn").disabled = true;
+      recorder.stop();
+    }
+  });
+
+  $("sendBtn").addEventListener("click", () => {
+    if (!audioBlob || $("sendBtn").disabled) return;
+    if (audioBlob.size > 8 * 1024 * 1024) {
+      status($("uploadStatus"), "El audio supera el límite de 8 MB. Avisale al docente para resolverlo.", "error");
+      $("problemText").textContent = "El archivo de audio superó el límite permitido. Avisale al docente e indicá tu código.";
+      show("problemCard");
+      return;
+    }
+    $("sendBtn").disabled = true;
+    status($("uploadStatus"), "Preparando el envío…");
+    const reader = new FileReader();
+    reader.onerror = () => {
+      status($("uploadStatus"), "No se pudo preparar el archivo. Avisale al docente.", "error");
+      $("sendBtn").disabled = false;
+    };
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      const base64 = dataUrl.split(",")[1];
+      requestId = makeRequestId();
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = UPLOAD_URL;
+      form.target = "uploadTarget";
+      form.acceptCharset = "UTF-8";
+      const fields = {
+        code: studentCode,
+        requestId,
+        mimeType: audioBlob.type || "application/octet-stream",
+        audioData: base64
+      };
+      Object.entries(fields).forEach(([name,value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden"; input.name = name; input.value = value;
+        form.appendChild(input);
+      });
+      let frame = document.getElementById("uploadTarget");
+      if (!frame) {
+        frame = document.createElement("iframe");
+        frame.name = "uploadTarget"; frame.id = "uploadTarget";
+        frame.style.display = "none";
+        document.body.appendChild(frame);
+      }
+      window.addEventListener("message", onUploadMessage);
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+      status($("uploadStatus"), "Enviando… No cierres esta página.");
+      // Si el servidor no responde, no se habilita otro envío automáticamente.
+      setTimeout(() => {
+        if ($("sendBtn").disabled && !window.__uploadFinished) {
+          status($("uploadStatus"), "El envío está tardando. Esperá un poco más; si no aparece la confirmación, avisale al docente.", "error");
+        }
+      }, 45000);
+    };
+    reader.readAsDataURL(audioBlob);
+  });
+
+  function onUploadMessage(event) {
+    const d = event.data;
+    if (!d || d.type !== "LECTURA_UPLOAD_RESULT" || d.requestId !== requestId) return;
+    window.__uploadFinished = true;
+    window.removeEventListener("message", onUploadMessage);
+    if (d.ok) {
+      $("doneMessage").textContent = "La grabación se recibió correctamente. Código de registro: " + (d.receipt || "confirmado");
+      show("doneCard");
+    } else {
+      $("problemText").textContent = d.message || "No se pudo confirmar el envío. Avisale al docente e indicá tu código.";
+      show("problemCard");
+    }
+  }
+})();
+</script>
+</body>
+</html>
