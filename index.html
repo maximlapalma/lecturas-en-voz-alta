@@ -71,6 +71,9 @@
     <p class="notice">La grabación se realiza una sola vez. No cierres esta página mientras grabás.</p>
     <div class="status" id="recordStatus"><span class="dot"></span>Listo para grabar</div>
     <div class="timer" id="timer">00:00</div>
+    <p class="notice" style="text-align:center; color:#b42318;">
+  <strong>Importante:</strong> La grabación no debe superar los 10 minutos. Al llegar a ese tiempo, se detendrá automáticamente.
+</p>
     <div class="stack">
       <button id="startBtn">Comenzar lectura</button>
       <button id="stopBtn" class="danger hidden">Finalizar grabación</button>
@@ -178,7 +181,16 @@
       $("stopBtn").classList.remove("hidden");
       status($("recordStatus"), "Grabando…", "");
       $("recordStatus").innerHTML = '<span class="dot live"></span>Grabando…';
-      timerHandle = setInterval(() => $("timer").textContent = fmtTime((Date.now()-startedAt)/1000), 500);
+      timerHandle = setInterval(() => {
+  const elapsed = (Date.now() - startedAt) / 1000;
+  $("timer").textContent = fmtTime(elapsed);
+
+  if (elapsed >= 600) {
+    clearInterval(timerHandle);
+    $("stopBtn").disabled = true;
+    recorder.stop();
+  }
+}, 500);
     } catch (err) {
       $("startBtn").disabled = false;
       alert(err.message || "No se pudo acceder al micrófono.");
@@ -194,8 +206,8 @@
 
   $("sendBtn").addEventListener("click", () => {
     if (!audioBlob || $("sendBtn").disabled) return;
-    if (audioBlob.size > 8 * 1024 * 1024) {
-      status($("uploadStatus"), "El audio supera el límite de 8 MB. Avisale al docente para resolverlo.", "error");
+    if (audioBlob.size > 15 * 1024 * 1024) {
+      status($("uploadStatus"), "El audio supera el límite de 15 MB. Avisale al docente para resolverlo.", "error");
       $("problemText").textContent = "El archivo de audio superó el límite permitido. Avisale al docente e indicá tu código.";
       show("problemCard");
       return;
